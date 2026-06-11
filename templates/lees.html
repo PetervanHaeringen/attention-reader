@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ titel|default('Focuslezer') }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f4efe6;
+    --ink: #2b2620;
+    --ink-mid: #6b6055;
+    --ink-faint: #a89c8c;
+    --accent: #8a6a4a;
+    --adem: 1200ms;           /* duur van de overgang, gestemd per zin */
+    --leesmaat: 30rem;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Newsreader", Georgia, serif;
+    overflow: hidden;
+    background-image: radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0.45), transparent 70%);
+  }
+
+  /* De leesruimte: drie lagen, verticaal gecentreerd. */
+  #leesveld {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 2rem 1.5rem; gap: 1.4rem;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .laag {
+    width: 100%; max-width: var(--leesmaat); text-align: center; margin: 0;
+    transition: opacity var(--adem) cubic-bezier(0.45,0,0.55,1),
+                filter var(--adem) cubic-bezier(0.45,0,0.55,1),
+                transform var(--adem) cubic-bezier(0.45,0,0.55,1),
+                color var(--adem) cubic-bezier(0.45,0,0.55,1),
+                font-size var(--adem) cubic-bezier(0.45,0,0.55,1);
+  }
+  /* De vorige zin: nabeeld dat opdoemt, gedimd, klein. */
+  #vorige   { font-size: 1.05rem; color: var(--ink-faint); opacity: 0.55; filter: blur(0.4px); font-style: italic; line-height: 1.5; }
+  /* De focuszin: het ware heden. Scherp, groot, helder. */
+  #focus    { font-size: clamp(1.5rem, 3.6vw, 2.15rem); color: var(--ink); line-height: 1.5; letter-spacing: -0.005em; }
+  /* De volgende zin: half uit de mist, genoeg om de boog te spannen. */
+  #volgende { font-size: 1.05rem; color: var(--ink-faint); opacity: 0.32; filter: blur(1.1px); line-height: 1.5; }
+
+  /* Vervaging tijdens het opschuiven: de volle adem, traag in en uit. */
+  #leesveld.schuift .laag { opacity: 0; filter: blur(4px); transform: translateY(-4px); }
+  #leesveld.schuift #focus { transform: translateY(-12px); }
+
+  /* Voortgang: een dunne, rustige lijn onderaan. */
+  #voortgang {
+    position: fixed; left: 0; bottom: 0; height: 2px;
+    background: var(--accent); width: 0%; opacity: 0.5;
+    transition: width var(--adem) ease;
+  }
+
+  /* Subtiele hint, vervaagt vanzelf. */
+  #hint {
+    position: fixed; bottom: 1.6rem; left: 50%; transform: translateX(-50%);
+    color: var(--ink-faint); font-style: italic; font-size: 0.92rem;
+    text-align: center; transition: opacity 1.2s ease; pointer-events: none; line-height: 1.5;
+  }
+
+  /* Bovenbalk. */
+  #balk {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.4rem; font-size: 0.95rem; color: var(--ink-mid); z-index: 5;
+  }
+  #balk a { color: var(--ink-mid); text-decoration: none; transition: color 0.3s; }
+  #balk a:hover { color: var(--accent); }
+  #titel { font-family: "Fraunces", serif; font-weight: 300; font-style: italic; }
+
+  /* Rechtsboven: teller, vanzelf, afstemmen. */
+  #regie {
+    position: fixed; top: 0.7rem; right: 1.2rem;
+    display: flex; align-items: center; gap: 0.5rem; z-index: 6;
+  }
+  #teller { font-variant-numeric: tabular-nums; opacity: 0.7; margin-right: 0.3rem; }
+  #regie button {
+    border: 1px solid rgba(43,38,32,0.18); background: rgba(255,255,255,0.4);
+    color: var(--ink-mid); font-family: inherit; font-size: 0.9rem;
+    border-radius: 999px; padding: 0.35rem 0.9rem; cursor: pointer; transition: all 0.3s ease;
+  }
+  #regie button:hover { color: var(--accent); border-color: var(--accent); }
+  #regie button.actief { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+  #regie-knoppen { display: flex; gap: 0.5rem; align-items: center; }
+
+  /* Hamburger: standaard verborgen, alleen op smal scherm zichtbaar. */
+  #menu-knop {
+    display: none;
+    flex-direction: column; justify-content: center; gap: 4px;
+    width: 38px; height: 34px; padding: 0 9px;
+  }
+  #menu-knop span {
+    display: block; height: 2px; width: 100%;
+    background: var(--ink-mid); border-radius: 2px; transition: background 0.3s;
+  }
+  #menu-knop:hover span { background: var(--accent); }
+
+  /* Het afstem-paneel: standaard weggevouwen, opent voor wie wil. */
+  #afstem {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(380px, 90vw);
+    background: rgba(244,239,230,0.97); backdrop-filter: blur(10px);
+    border-left: 1px solid rgba(43,38,32,0.12);
+    padding: 4.5rem 1.8rem 2rem; z-index: 10;
+    transform: translateX(100%); transition: transform 0.45s cubic-bezier(0.45,0,0.55,1);
+    overflow-y: auto;
+  }
+  #afstem.open { transform: translateX(0); }
+  #afstem h2 { font-family: "Fraunces", serif; font-weight: 300; font-size: 1.3rem; margin: 0 0 0.3rem; }
+  #afstem .inleiding { color: var(--ink-mid); font-style: italic; font-size: 0.9rem; line-height: 1.5; margin: 0 0 1.8rem; }
+  #afstem .sluit {
+    position: absolute; top: 1.2rem; right: 1.4rem; cursor: pointer;
+    color: var(--ink-mid); font-size: 1.4rem; line-height: 1; background: none; border: none;
+  }
+  .veld { margin-bottom: 1.6rem; }
+  .veld label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.2rem; font-size: 0.95rem; color: var(--ink); }
+  .veld .waarde { font-variant-numeric: tabular-nums; color: var(--accent); font-size: 0.88rem; }
+  .veld .uitleg { display: block; font-size: 0.82rem; color: var(--ink-mid); font-style: italic; line-height: 1.45; margin-bottom: 0.5rem; }
+  .veld input[type=range] {
+    width: 100%; -webkit-appearance: none; appearance: none;
+    height: 2px; background: rgba(43,38,32,0.2); border-radius: 2px; outline: none;
+  }
+  .veld input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 16px; height: 16px;
+    border-radius: 50%; background: var(--accent); cursor: pointer;
+  }
+  .veld input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px; border: none; border-radius: 50%; background: var(--accent); cursor: pointer;
+  }
+  #tempo-meter { margin-top: 0.5rem; padding-top: 1.4rem; border-top: 1px dashed rgba(43,38,32,0.2); font-size: 0.85rem; color: var(--ink-mid); }
+  #tempo-meter .balk { width: 100%; height: 4px; border-radius: 4px; background: rgba(43,38,32,0.15); overflow: hidden; margin-bottom: 0.5rem; }
+  #tempo-meter .balk-vol { height: 100%; width: 50%; background: var(--accent); border-radius: 4px; transition: width 0.6s cubic-bezier(0.45,0,0.55,1); }
+  #tempo-meter b { color: var(--accent); font-style: normal; }
+  #tempo-meter .uitleg { display: block; font-style: italic; opacity: 0.6; margin-top: 0.4rem; line-height: 1.45; }
+  .herstel { margin-top: 1.2rem; font-size: 0.85rem; color: var(--ink-mid); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
+  .herstel:hover { color: var(--accent); }
+
+  @media (max-width: 600px) {
+    :root { --leesmaat: 92vw; }
+    #balk { padding: 0.8rem 1rem; }
+    #titel {
+      max-width: 45vw; overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap; font-size: 0.9rem;
+    }
+    #regie { top: 0.6rem; right: 1rem; gap: 0.4rem; }
+    #teller { font-size: 0.82rem; }
+    #menu-knop { display: flex; }
+    /* Knoppen wegvouwen; verschijnen als verticaal menu bij 'open'. */
+    #regie-knoppen {
+      position: absolute; top: 2.6rem; right: 0;
+      flex-direction: column; align-items: stretch; gap: 0.4rem;
+      background: rgba(244,239,230,0.97); backdrop-filter: blur(10px);
+      border: 1px solid rgba(43,38,32,0.12); border-radius: 12px;
+      padding: 0.6rem; min-width: 9rem;
+      box-shadow: 0 6px 24px rgba(43,38,32,0.12);
+      opacity: 0; transform: translateY(-8px); pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+    #regie-knoppen.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    #regie-knoppen button { text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<div id="balk">
+  <a href="{{ url_for('index') }}">‹ terug</a>
+  <span id="titel">{{ titel }}</span>
+  <span style="width:3rem"></span>
+</div>
+
+<div id="regie">
+  <span id="teller"></span>
+  <button id="menu-knop" title="Menu" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+  <div id="regie-knoppen">
+    <button id="auto-knop" title="Read by itself">vanzelf</button>
+    <button id="afstem-knop" title="Tune the breath">afstemmen</button>
+    <button id="taal-knop" title="Nederlands / English">NL</button>
+  </div>
+</div>
+
+<div id="leesveld">
+  <p class="laag" id="vorige"></p>
+  <p class="laag" id="focus"></p>
+  <p class="laag" id="volgende"></p>
+</div>
+
+<div id="voortgang"></div>
+<div id="hint" data-i18n="hint">klik, spatie of → voor de volgende zin &nbsp;·&nbsp; ← terug</div>
+
+<!-- Afstem-paneel: weggevouwen, voor wie zelf wil stemmen. -->
+<aside id="afstem">
+  <button class="sluit" id="afstem-sluit" title="Close">×</button>
+  <h2 data-i18n="afstem_titel">De adem afstemmen</h2>
+  <p class="inleiding" data-i18n="afstem_inleiding">De overgang tussen zinnen ademt — langer voor lange zinnen, korter voor korte. Hier stem je hoe die adem voelt. Je instellingen worden onthouden.</p>
+
+  <div class="veld">
+    <label><span data-i18n="lbl_basis">rust-adem</span> <span class="waarde" id="w-basis">800 ms</span></label>
+    <span class="uitleg" data-i18n="uitleg_basis">De kortste adem: hoe lang zelfs een heel korte zin de tijd krijgt om weg te vloeien.</span>
+    <input type="range" id="s-basis" min="200" max="4000" step="50" value="800">
+  </div>
+  <div class="veld">
+    <label><span data-i18n="lbl_perteken">lengte-gevoel</span> <span class="waarde" id="w-perteken">25 ms</span></label>
+    <span class="uitleg" data-i18n="uitleg_perteken">Hoeveel langer een lange zin ademt dan een korte. Hoger = het verschil tussen kort en lang wordt sterker gevoeld.</span>
+    <input type="range" id="s-perteken" min="0" max="150" step="1" value="25">
+  </div>
+  <div class="veld">
+    <label><span data-i18n="lbl_plafond">plafond</span> <span class="waarde" id="w-plafond">5000 ms</span></label>
+    <span class="uitleg" data-i18n="uitleg_plafond">De langste adem: zelfs de langste zin wordt nooit trager dan dit, zodat het niet gaat slepen.</span>
+    <input type="range" id="s-plafond" min="1000" max="12000" step="100" value="5000">
+  </div>
+  <div class="veld">
+    <label><span data-i18n="lbl_rust">leesrust</span> <span class="waarde" id="w-rust">1500 ms</span></label>
+    <span class="uitleg" data-i18n="uitleg_rust">In de 'vanzelf'-stand: hoe lang een zin scherp blijft staan voordat hij begint weg te ademen.</span>
+    <input type="range" id="s-rust" min="0" max="8000" step="100" value="1500">
+  </div>
+
+  <div id="tempo-meter">
+    <div class="balk"><div class="balk-vol"></div></div>
+    <span class="tempo-tekst">grondtempo <b>in rust</b> &nbsp;·&nbsp; factor 1.00</span>
+    <span class="uitleg" data-i18n="uitleg_tempo">In de 'vanzelf'-stand vindt het tempo zich naar jou: druk vóór de adem en het wordt vlotter, laat een zin vanzelf wegademen en het wordt rustiger.</span>
+  </div>
+
+  <button class="herstel" id="afstem-herstel" data-i18n="herstel">terug naar de oorspronkelijke adem</button>
+</aside>
+
+<script>
+  // ---- Vertalingen (Engels is de thuistaal, NL de variant) ----
+  const VERT = {
+    en: {
+      terug: '‹ back',
+      vanzelf: 'auto',
+      pauze: 'pause',
+      afstemmen: 'tune',
+      afstem_titel: 'Tune the breath',
+      afstem_inleiding: 'The transition between sentences breathes — longer for long sentences, shorter for short ones. Here you tune how that breath feels. Your settings are remembered.',
+      lbl_basis: 'resting breath',
+      uitleg_basis: 'The shortest breath: how long even a very short sentence is given to drift away.',
+      lbl_perteken: 'sense of length',
+      uitleg_perteken: 'How much longer a long sentence breathes than a short one. Higher = the difference between short and long is felt more strongly.',
+      lbl_plafond: 'ceiling',
+      uitleg_plafond: 'The longest breath: even the longest sentence never breathes slower than this, so it never drags.',
+      lbl_rust: 'reading rest',
+      uitleg_rust: "In 'auto' mode: how long a sentence stays sharp before it begins to breathe away.",
+      uitleg_tempo: "In 'auto' mode the pace finds its way to you: press before the breath and it quickens, let a sentence breathe away on its own and it eases.",
+      herstel: 'back to the original breath',
+      hint: 'click, space or → for the next sentence &nbsp;·&nbsp; ← back',
+      grondtempo: 'base pace', in_rust: 'at rest', vlotter: 'quicker', rustiger: 'easier', factor: 'factor',
+      sluiten: 'Close', geen_zinnen: 'This text contains no readable sentences.',
+      eigen_titel: 'your text',
+    },
+    nl: {
+      terug: '‹ terug',
+      vanzelf: 'vanzelf',
+      pauze: 'pauze',
+      afstemmen: 'afstemmen',
+      afstem_titel: 'De adem afstemmen',
+      afstem_inleiding: 'De overgang tussen zinnen ademt — langer voor lange zinnen, korter voor korte. Hier stem je hoe die adem voelt. Je instellingen worden onthouden.',
+      lbl_basis: 'rust-adem',
+      uitleg_basis: 'De kortste adem: hoe lang zelfs een heel korte zin de tijd krijgt om weg te vloeien.',
+      lbl_perteken: 'lengte-gevoel',
+      uitleg_perteken: 'Hoeveel langer een lange zin ademt dan een korte. Hoger = het verschil tussen kort en lang wordt sterker gevoeld.',
+      lbl_plafond: 'plafond',
+      uitleg_plafond: 'De langste adem: zelfs de langste zin wordt nooit trager dan dit, zodat het niet gaat slepen.',
+      lbl_rust: 'leesrust',
+      uitleg_rust: "In de 'vanzelf'-stand: hoe lang een zin scherp blijft staan voordat hij begint weg te ademen.",
+      uitleg_tempo: "In de 'vanzelf'-stand vindt het tempo zich naar jou: druk vóór de adem en het wordt vlotter, laat een zin vanzelf wegademen en het wordt rustiger.",
+      herstel: 'terug naar de oorspronkelijke adem',
+      hint: 'klik, spatie of → voor de volgende zin &nbsp;·&nbsp; ← terug',
+      grondtempo: 'grondtempo', in_rust: 'in rust', vlotter: 'vlotter', rustiger: 'rustiger', factor: 'factor',
+      sluiten: 'Sluiten', geen_zinnen: 'Deze tekst bevat geen leesbare zinnen.',
+      eigen_titel: 'eigen tekst',
+    },
+  };
+  let taal = localStorage.getItem('focuslezer:taal') || 'en';
+
+  function t(sleutel) { return (VERT[taal] && VERT[taal][sleutel]) || VERT.en[sleutel] || sleutel; }
+
+  function zetTaal(nieuw) {
+    taal = nieuw;
+    localStorage.setItem('focuslezer:taal', taal);
+    document.documentElement.lang = taal;
+    // Alle gemarkeerde teksten omzetten.
+    document.querySelectorAll('[data-i18n]').forEach(n => { n.innerHTML = t(n.getAttribute('data-i18n')); });
+    // Knoppen met eigen logica.
+    document.querySelector('#balk a').textContent = t('terug');
+    document.getElementById('afstem-knop').textContent = t('afstemmen');
+    document.getElementById('afstem-knop').title = t('afstemmen');
+    document.getElementById('afstem-sluit').title = t('sluiten');
+    document.getElementById('auto-knop').textContent = autoAan ? t('pauze') : t('vanzelf');
+    document.getElementById('auto-knop').title = t('vanzelf');
+    // De taalknop toont de táál waarheen je kunt wisselen (de andere taal).
+    document.getElementById('taal-knop').textContent = taal === 'en' ? 'NL' : 'EN';
+    toonTempo();
+  }
+
+  // ---- De zinnen ----
+  let zinnen = {% if zinnen_json %}{{ zinnen_json|safe }}{% else %}[]{% endif %};
+  const isEigen = new URLSearchParams(location.search).get('eigen') === '1';
+  const boekSleutel = isEigen
+      ? 'eigen:' + (sessionStorage.getItem('eigenTitel') || 'tekst')
+      : 'boek:' + {{ boek|tojson }};
+
+  const el = {
+    vorige: document.getElementById('vorige'),
+    focus: document.getElementById('focus'),
+    volgende: document.getElementById('volgende'),
+    veld: document.getElementById('leesveld'),
+    voortgang: document.getElementById('voortgang'),
+    teller: document.getElementById('teller'),
+    titel: document.getElementById('titel'),
+    hint: document.getElementById('hint'),
+  };
+
+  // ---- Afstem-waarden (met standaard en geheugen) ----
+  const STANDAARD = { basis: 800, perteken: 25, plafond: 5000, rust: 1500 };
+  const S = {
+    basis: document.getElementById('s-basis'),
+    perteken: document.getElementById('s-perteken'),
+    plafond: document.getElementById('s-plafond'),
+    rust: document.getElementById('s-rust'),
+  };
+  function laadInstelling() {
+    try {
+      const opgeslagen = JSON.parse(localStorage.getItem('focuslezer:adem') || '{}');
+      for (const k in S) if (opgeslagen[k] != null) S[k].value = opgeslagen[k];
+    } catch (e) {}
+    updateWaarden();
+  }
+  function bewaarInstelling() {
+    const v = {}; for (const k in S) v[k] = +S[k].value;
+    localStorage.setItem('focuslezer:adem', JSON.stringify(v));
+  }
+  function updateWaarden() {
+    document.getElementById('w-basis').textContent = S.basis.value + ' ms';
+    document.getElementById('w-perteken').textContent = S.perteken.value + ' ms';
+    document.getElementById('w-plafond').textContent = S.plafond.value + ' ms';
+    document.getElementById('w-rust').textContent = S.rust.value + ' ms';
+  }
+
+  // ---- De adem-formule ----
+  function ademVoor(zin) {
+    const n = (zin || '').length;
+    return Math.min(+S.basis.value + n * (+S.perteken.value), +S.plafond.value);
+  }
+  function zetAdem(zin) {
+    const ms = ademVoor(zin);
+    document.documentElement.style.setProperty('--adem', ms + 'ms');
+    return ms;
+  }
+
+  // ---- De sinusknoop: grondtempo dat meebeweegt met jouw ritme ----
+  let tempoFactor = 1.0;
+  let zinGetoondOp = 0, wachtTotAutoWeg = 0;
+  const VOLGZAAMHEID = 0.28, FACTOR_MIN = 0.4, FACTOR_MAX = 2.2;
+
+  function stemBij(verhouding) {
+    const doel = tempoFactor * verhouding;
+    tempoFactor += (doel - tempoFactor) * VOLGZAAMHEID;
+    tempoFactor = Math.max(FACTOR_MIN, Math.min(FACTOR_MAX, tempoFactor));
+    toonTempo();
+  }
+  function toonTempo() {
+    const t_el = document.getElementById('tempo-meter');
+    const pct = Math.round((1 / tempoFactor) * 100);
+    const richting = tempoFactor < 0.95 ? t('vlotter') : tempoFactor > 1.05 ? t('rustiger') : t('in_rust');
+    t_el.querySelector('.balk-vol').style.width = Math.max(8, Math.min(100, pct / 2)) + '%';
+    t_el.querySelector('.tempo-tekst').innerHTML = `${t('grondtempo')} <b>${richting}</b> &nbsp;·&nbsp; ${t('factor')} ${tempoFactor.toFixed(2)}`;
+  }
+
+  let i = 0, autoAan = false, autoTimer = null, bezig = false;
+
+  // ---- Eigen tekst? Eerst laten segmenteren. ----
+  async function init() {
+    laadInstelling();
+    if (isEigen) {
+      const tekst = sessionStorage.getItem('eigenTekst') || '';
+      el.titel.textContent = sessionStorage.getItem('eigenTitel') || t('eigen_titel');
+      document.title = el.titel.textContent;
+      try {
+        const res = await fetch("{{ url_for('segmenteer') }}", {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tekst })
+        });
+        zinnen = (await res.json()).zinnen || [];
+      } catch (err) { zinnen = tekst.split(/\n+/).filter(Boolean); }
+    }
+    if (!zinnen.length) { el.focus.textContent = t('geen_zinnen'); return; }
+    const bewaard = parseInt(localStorage.getItem(boekSleutel), 10);
+    if (!isNaN(bewaard) && bewaard >= 0 && bewaard < zinnen.length) i = bewaard;
+    toon(true);
+    setTimeout(() => { el.hint.style.opacity = '0'; }, 6000);
+  }
+
+  // ---- De drie lagen, tweefasen-overgang ----
+  function toon(direct) {
+    const vul = () => {
+      el.vorige.textContent   = i > 0 ? zinnen[i-1] : '';
+      el.focus.textContent    = zinnen[i] || '';
+      el.volgende.textContent = i < zinnen.length-1 ? zinnen[i+1] : '';
+      el.teller.textContent   = (i+1) + ' / ' + zinnen.length;
+      el.voortgang.style.width = ((i+1) / zinnen.length * 100) + '%';
+      localStorage.setItem(boekSleutel, i);
+    };
+    if (direct) { zetAdem(zinnen[i]); vul(); el.veld.classList.remove('schuift'); bezig = false; return; }
+    const ms = zetAdem(zinnen[i]);
+    bezig = true;
+    el.veld.classList.add('schuift');               // fase 1: alles vervaagt
+    setTimeout(() => {
+      vul(); el.veld.classList.remove('schuift');   // fase 2: nieuwe doemt op
+      setTimeout(() => { bezig = false; }, ms);
+    }, ms);
+  }
+
+  function volgende() {
+    if (bezig) return;
+    if (i < zinnen.length-1) { i++; toon(); }
+    else stopAuto();
+  }
+  function vorige() {
+    if (bezig) return;
+    if (i > 0) { i--; toon(); }
+  }
+
+  // ---- Vanzelf met sinusknoop ----
+  function planAuto() {
+    clearTimeout(autoTimer);
+    if (!autoAan) return;
+    const rust = +S.rust.value, adem = ademVoor(zinnen[i]);
+    wachtTotAutoWeg = (rust + adem) * tempoFactor;
+    zinGetoondOp = performance.now();
+    autoTimer = setTimeout(() => {
+      stemBij(1.35);                 // liet lopen -> rustiger
+      if (i < zinnen.length-1) { volgende(); planAuto(); } else stopAuto();
+    }, wachtTotAutoWeg);
+  }
+  function drukTijdensAuto() {
+    const verstreken = performance.now() - zinGetoondOp;
+    if (wachtTotAutoWeg > 0) stemBij(Math.max(0.2, verstreken / wachtTotAutoWeg));
+    clearTimeout(autoTimer);
+    volgende();
+    if (autoAan) planAuto();
+  }
+  function startAuto() {
+    autoAan = true;
+    const k = document.getElementById('auto-knop');
+    k.classList.add('actief'); k.textContent = t('pauze');
+    el.hint.style.opacity = '0';
+    planAuto();
+  }
+  function stopAuto() {
+    autoAan = false;
+    const k = document.getElementById('auto-knop');
+    k.classList.remove('actief'); k.textContent = t('vanzelf');
+    clearTimeout(autoTimer);
+  }
+
+  // ---- Bediening ----
+  el.veld.addEventListener('click', () => { if (autoAan) drukTijdensAuto(); else volgende(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault(); if (autoAan) drukTijdensAuto(); else volgende();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault(); stopAuto(); vorige();
+    } else if (e.key === 'Escape') {
+      document.getElementById('afstem').classList.remove('open');
+    }
+  });
+
+  // ---- Hamburger-menu (mobiel) ----
+  const regieKnoppen = document.getElementById('regie-knoppen');
+  document.getElementById('menu-knop').addEventListener('click', (e) => {
+    e.stopPropagation(); regieKnoppen.classList.toggle('open');
+  });
+  // Sluit het menu na een keuze of bij tikken buiten het menu.
+  document.getElementById('auto-knop').addEventListener('click', () => regieKnoppen.classList.remove('open'));
+  document.getElementById('afstem-knop').addEventListener('click', () => regieKnoppen.classList.remove('open'));
+  document.getElementById('taal-knop').addEventListener('click', () => regieKnoppen.classList.remove('open'));
+  el.veld.addEventListener('click', () => regieKnoppen.classList.remove('open'));
+
+  document.getElementById('auto-knop').addEventListener('click', (e) => {
+    e.stopPropagation(); autoAan ? stopAuto() : startAuto();
+  });
+
+  // ---- Afstem-paneel ----
+  document.getElementById('afstem-knop').addEventListener('click', (e) => {
+    e.stopPropagation(); document.getElementById('afstem').classList.toggle('open'); toonTempo();
+  });
+  document.getElementById('afstem-sluit').addEventListener('click', (e) => {
+    e.stopPropagation(); document.getElementById('afstem').classList.remove('open');
+  });
+  Object.values(S).forEach(s => s.addEventListener('input', () => {
+    updateWaarden(); bewaarInstelling(); zetAdem(zinnen[i] || '');
+  }));
+  document.getElementById('afstem-herstel').addEventListener('click', () => {
+    for (const k in STANDAARD) S[k].value = STANDAARD[k];
+    tempoFactor = 1.0; updateWaarden(); bewaarInstelling(); toonTempo();
+  });
+
+  // ---- Taalknop ----
+  document.getElementById('taal-knop').addEventListener('click', (e) => {
+    e.stopPropagation(); zetTaal(taal === 'en' ? 'nl' : 'en');
+  });
+
+  zetTaal(taal);   // pas de gekozen (of standaard Engelse) taal toe
+  init();
+</script>
+</body>
+</html>

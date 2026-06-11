@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Focuslezer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Newsreader:ital,opsz@0,6..72;1,6..72&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f4efe6;
+    --ink: #2b2620;
+    --ink-soft: #6b6055;
+    --accent: #8a6a4a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Newsreader", Georgia, serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 6vh 1.5rem;
+    background-image:
+      radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.5), transparent 60%),
+      radial-gradient(ellipse at 50% 100%, rgba(138,106,74,0.06), transparent 55%);
+  }
+  .wrap { max-width: 640px; width: 100%; text-align: center; }
+  h1 {
+    font-family: "Fraunces", serif;
+    font-weight: 300;
+    font-size: clamp(2.4rem, 7vw, 4rem);
+    letter-spacing: -0.02em;
+    margin: 0 0 0.3rem;
+  }
+  .ondertitel {
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 1.15rem;
+    margin: 0 0 3rem;
+    line-height: 1.5;
+  }
+  .boeken { list-style: none; padding: 0; margin: 0; }
+  .boeken li { margin: 0; }
+  .boeken a {
+    display: block;
+    text-decoration: none;
+    color: var(--ink);
+    font-size: 1.4rem;
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid rgba(43,38,32,0.12);
+    transition: color 0.4s ease, letter-spacing 0.4s ease, background 0.4s ease;
+  }
+  .boeken a:hover {
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    background: rgba(255,255,255,0.4);
+  }
+  .eigen {
+    margin: 0 0 1.5rem;
+    padding: 1.4rem 1.5rem;
+    border: 1px dashed rgba(43,38,32,0.25);
+    border-radius: 12px;
+    transition: background 0.35s ease, border-color 0.35s ease;
+  }
+  .eigen.sleep-actief {
+    background: rgba(138,106,74,0.08);
+    border-color: var(--accent);
+  }
+  .eigen label {
+    display: inline-block;
+    cursor: pointer;
+    color: var(--ink-soft);
+    font-style: italic;
+    font-size: 1.1rem;
+    transition: color 0.3s ease;
+  }
+  .eigen label:hover { color: var(--accent); }
+  .eigen .sleep-hint {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+    opacity: 0.6;
+  }
+  .eigen input { display: none; }
+  #taal-knop {
+    position: fixed; top: 1.2rem; right: 1.4rem;
+    border: 1px solid rgba(43,38,32,0.18); background: rgba(255,255,255,0.5);
+    color: var(--ink-soft); font-family: inherit; font-size: 0.9rem;
+    border-radius: 999px; padding: 0.35rem 0.9rem; cursor: pointer; transition: all 0.3s ease;
+  }
+  #taal-knop:hover { color: var(--accent); border-color: var(--accent); }
+  .biblio-kop {
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    opacity: 0.7;
+    margin: 0 0 0.4rem;
+    text-align: left;
+    padding-left: 0.2rem;
+  }
+  footer {
+    margin-top: 4rem;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    font-style: italic;
+    max-width: 30rem;
+    line-height: 1.6;
+    opacity: 0.8;
+  }
+</style>
+</head>
+<body>
+  <button id="taal-knop" title="Nederlands / English">NL</button>
+  <div class="wrap">
+    <h1>Focuslezer</h1>
+    <p class="ondertitel" data-i18n="ondertitel">Eén zin tegelijk.<br>Het oog mag rusten, de verbeelding krijgt ruimte.</p>
+
+    <div class="eigen" id="sleepzone">
+      <label for="eigen-bestand" data-i18n="eigen_label">… open je eigen tekstbestand</label>
+      <span class="sleep-hint" data-i18n="sleep_hint">klik hier, of sleep een .txt-bestand naar dit vlak</span>
+      <input type="file" id="eigen-bestand" accept=".txt">
+    </div>
+
+    {% if boeken %}
+    <p class="biblio-kop" data-i18n="biblio_kop">… of kies uit de bibliotheek</p>
+    <ul class="boeken">
+      {% for boek in boeken %}
+      <li><a href="{{ url_for('lees', boek=boek) }}">{{ boek.rsplit('.', 1)[0] }}</a></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p style="color:var(--ink-soft);font-style:italic" data-i18n="geen_boeken">Nog geen boeken in de map. Sleep hierboven een tekst naar binnen.</p>
+    {% endif %}
+
+    <footer data-i18n="footer">
+      Lezen activeert je verbeelding in plaats van haar te vullen met wat een
+      ander bedacht heeft — en dat schept een ruimte waarin van alles kan groeien.
+    </footer>
+  </div>
+
+<script>
+  const sleepzone = document.getElementById('sleepzone');
+  const bestandInput = document.getElementById('eigen-bestand');
+
+  // Eén gedeelde route: lees lokaal, bewaar in sessionStorage, ga naar lezer.
+  // De tekst gaat NIET naar de server — privé en vluchtig.
+  function openEigenTekst(file) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.txt')) {
+      alert(t('alleen_txt'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function (ev) {
+      sessionStorage.setItem('eigenTekst', ev.target.result);
+      sessionStorage.setItem('eigenTitel', file.name.replace(/\.[^.]+$/, ''));
+      window.location.href = "{{ url_for('lees') }}?eigen=1";
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  // Via de klik / bestandskiezer.
+  bestandInput.addEventListener('change', function (e) {
+    openEigenTekst(e.target.files[0]);
+  });
+
+  // Via slepen naar het vlak.
+  ['dragenter', 'dragover'].forEach(function (evt) {
+    sleepzone.addEventListener(evt, function (e) {
+      e.preventDefault();
+      sleepzone.classList.add('sleep-actief');
+    });
+  });
+  ['dragleave', 'dragend'].forEach(function (evt) {
+    sleepzone.addEventListener(evt, function (e) {
+      e.preventDefault();
+      sleepzone.classList.remove('sleep-actief');
+    });
+  });
+  sleepzone.addEventListener('drop', function (e) {
+    e.preventDefault();
+    sleepzone.classList.remove('sleep-actief');
+    if (e.dataTransfer.files && e.dataTransfer.files.length) {
+      openEigenTekst(e.dataTransfer.files[0]);
+    }
+  });
+
+  // Voorkom dat een misser buiten het vlak het bestand in de browser opent.
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('drop', function (e) { e.preventDefault(); });
+
+  // ---- Taal (Engels is de thuistaal) ----
+  const VERT = {
+    en: {
+      ondertitel: 'One sentence at a time.<br>The eye may rest, the imagination is given room.',
+      eigen_label: '… open your own text file',
+      sleep_hint: 'click here, or drag a .txt file onto this area',
+      biblio_kop: '… or choose from the library',
+      geen_boeken: 'No books in the folder yet. Drag a text in above.',
+      footer: 'Reading activates your imagination instead of filling it with what someone else has thought up — and that creates a space in which all kinds of things can grow.',
+      alleen_txt: 'Only .txt files can be opened.',
+    },
+    nl: {
+      ondertitel: 'Eén zin tegelijk.<br>Het oog mag rusten, de verbeelding krijgt ruimte.',
+      eigen_label: '… open je eigen tekstbestand',
+      sleep_hint: 'klik hier, of sleep een .txt-bestand naar dit vlak',
+      biblio_kop: '… of kies uit de bibliotheek',
+      geen_boeken: 'Nog geen boeken in de map. Sleep hierboven een tekst naar binnen.',
+      footer: 'Lezen activeert je verbeelding in plaats van haar te vullen met wat een ander bedacht heeft — en dat schept een ruimte waarin van alles kan groeien.',
+      alleen_txt: 'Alleen .txt-bestanden kunnen geopend worden.',
+    },
+  };
+  let taal = localStorage.getItem('focuslezer:taal') || 'en';
+  function t(s) { return (VERT[taal] && VERT[taal][s]) || VERT.en[s] || s; }
+  function zetTaal(nieuw) {
+    taal = nieuw;
+    localStorage.setItem('focuslezer:taal', taal);
+    document.documentElement.lang = taal;
+    document.querySelectorAll('[data-i18n]').forEach(n => { n.innerHTML = t(n.getAttribute('data-i18n')); });
+    document.getElementById('taal-knop').textContent = taal === 'en' ? 'NL' : 'EN';
+  }
+  document.getElementById('taal-knop').addEventListener('click', () => zetTaal(taal === 'en' ? 'nl' : 'en'));
+  zetTaal(taal);
+</script>
+</body>
+</html>
