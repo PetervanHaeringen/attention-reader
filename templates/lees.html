@@ -16,7 +16,43 @@
     --accent: #8a6a4a;
     --adem: 1200ms;           /* duur van de overgang, gestemd per zin */
     --leesmaat: 30rem;
+    --focus-grootte: clamp(1.5rem, 3.6vw, 2.15rem);
+    --buur-grootte: 1.05rem;
+    --buur-vorige-opacity: 0.55;
+    --buur-volgende-opacity: 0.32;
+    --mist: 1;                /* 1 = mist aan (zacht), 0 = mist uit (scherp) */
   }
+
+  /* Toegankelijkheid: hoog contrast donker — helder op diep zwart. */
+  body[data-modus="contrast-donker"] {
+    --paper: #000000;
+    --ink: #ffffff;
+    --ink-mid: #e8e8e8;
+    --ink-faint: #c8c8c8;
+    --accent: #ffd24a;
+    --focus-grootte: clamp(2rem, 5vw, 3rem);
+    --buur-grootte: 1.2rem;
+    --buur-vorige-opacity: 0.85;
+    --buur-volgende-opacity: 0.7;
+    --mist: 0;
+  }
+  /* Toegankelijkheid: hoog contrast licht — diep zwart op wit. */
+  body[data-modus="contrast-licht"] {
+    --paper: #ffffff;
+    --ink: #000000;
+    --ink-mid: #1a1a1a;
+    --ink-faint: #333333;
+    --accent: #0040b0;
+    --focus-grootte: clamp(2rem, 5vw, 3rem);
+    --buur-grootte: 1.2rem;
+    --buur-vorige-opacity: 0.85;
+    --buur-volgende-opacity: 0.7;
+    --mist: 0;
+  }
+  /* In hoog-contrast-standen: geen achtergrondgloed, geen blur. */
+  body[data-modus^="contrast"] { background-image: none !important; }
+  body[data-modus^="contrast"] .laag { filter: none !important; }
+  body[data-modus^="contrast"] #focus { font-weight: 400; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; height: 100%; }
   body {
@@ -44,11 +80,11 @@
                 font-size var(--adem) cubic-bezier(0.45,0,0.55,1);
   }
   /* De vorige zin: nabeeld dat opdoemt, gedimd, klein. */
-  #vorige   { font-size: 1.05rem; color: var(--ink-faint); opacity: 0.55; filter: blur(0.4px); font-style: italic; line-height: 1.5; }
+  #vorige   { font-size: var(--buur-grootte); color: var(--ink-faint); opacity: var(--buur-vorige-opacity); filter: blur(calc(0.4px * var(--mist))); font-style: italic; line-height: 1.5; }
   /* De focuszin: het ware heden. Scherp, groot, helder. */
-  #focus    { font-size: clamp(1.5rem, 3.6vw, 2.15rem); color: var(--ink); line-height: 1.5; letter-spacing: -0.005em; }
+  #focus    { font-size: var(--focus-grootte); color: var(--ink); line-height: 1.5; letter-spacing: -0.005em; }
   /* De volgende zin: half uit de mist, genoeg om de boog te spannen. */
-  #volgende { font-size: 1.05rem; color: var(--ink-faint); opacity: 0.32; filter: blur(1.1px); line-height: 1.5; }
+  #volgende { font-size: var(--buur-grootte); color: var(--ink-faint); opacity: var(--buur-volgende-opacity); filter: blur(calc(1.1px * var(--mist))); line-height: 1.5; }
 
   /* Vervaging tijdens het opschuiven: de volle adem, traag in en uit. */
   #leesveld.schuift .laag { opacity: 0; filter: blur(4px); transform: translateY(-4px); }
@@ -108,8 +144,8 @@
   /* Het afstem-paneel: standaard weggevouwen, opent voor wie wil. */
   #afstem {
     position: fixed; top: 0; right: 0; bottom: 0; width: min(380px, 90vw);
-    background: rgba(244,239,230,0.97); backdrop-filter: blur(10px);
-    border-left: 1px solid rgba(43,38,32,0.12);
+    background: var(--paper); backdrop-filter: blur(10px);
+    border-left: 1px solid rgba(128,128,128,0.25);
     padding: 4.5rem 1.8rem 2rem; z-index: 10;
     transform: translateX(100%); transition: transform 0.45s cubic-bezier(0.45,0,0.55,1);
     overflow-y: auto;
@@ -143,6 +179,15 @@
   #tempo-meter .uitleg { display: block; font-style: italic; opacity: 0.6; margin-top: 0.4rem; line-height: 1.45; }
   .herstel { margin-top: 1.2rem; font-size: 0.85rem; color: var(--ink-mid); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
   .herstel:hover { color: var(--accent); }
+  .modus-knoppen { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.3rem; }
+  .modus-knop {
+    flex: 1; min-width: 5rem;
+    border: 1px solid rgba(128,128,128,0.35); background: transparent;
+    color: var(--ink-mid); font-family: inherit; font-size: 0.85rem;
+    border-radius: 8px; padding: 0.5rem 0.6rem; cursor: pointer; transition: all 0.25s ease;
+  }
+  .modus-knop:hover { border-color: var(--accent); color: var(--accent); }
+  .modus-knop.actief { background: var(--accent); color: var(--paper); border-color: var(--accent); }
 
   @media (max-width: 600px) {
     :root { --leesmaat: 92vw; }
@@ -206,6 +251,16 @@
   <p class="inleiding" data-i18n="afstem_inleiding">De overgang tussen zinnen ademt — langer voor lange zinnen, korter voor korte. Hier stem je hoe die adem voelt. Je instellingen worden onthouden.</p>
 
   <div class="veld">
+    <label><span data-i18n="lbl_weergave">weergave</span></label>
+    <span class="uitleg" data-i18n="uitleg_weergave">Voor wie meer contrast of grotere letters nodig heeft. De zachte stand is de standaard; de contrast-standen halen de mist weg en maken alles groter en scherper.</span>
+    <div class="modus-knoppen">
+      <button class="modus-knop actief" data-modus="zacht" data-i18n="modus_zacht">zacht</button>
+      <button class="modus-knop" data-modus="contrast-donker" data-i18n="modus_donker">licht op zwart</button>
+      <button class="modus-knop" data-modus="contrast-licht" data-i18n="modus_licht">zwart op wit</button>
+    </div>
+  </div>
+
+  <div class="veld">
     <label><span data-i18n="lbl_basis">rust-adem</span> <span class="waarde" id="w-basis">800 ms</span></label>
     <span class="uitleg" data-i18n="uitleg_basis">De kortste adem: hoe lang zelfs een heel korte zin de tijd krijgt om weg te vloeien.</span>
     <input type="range" id="s-basis" min="200" max="4000" step="50" value="800">
@@ -255,6 +310,9 @@
       uitleg_rust: "In 'auto' mode: how long a sentence stays sharp before it begins to breathe away.",
       uitleg_tempo: "In 'auto' mode the pace finds its way to you: press before the breath and it quickens, let a sentence breathe away on its own and it eases.",
       herstel: 'back to the original breath',
+      lbl_weergave: 'display',
+      uitleg_weergave: 'For those who need more contrast or larger letters. The soft mode is the default; the contrast modes remove the mist and make everything larger and sharper.',
+      modus_zacht: 'soft', modus_donker: 'light on black', modus_licht: 'black on white',
       hint: 'click, space or → for the next sentence &nbsp;·&nbsp; ← back',
       grondtempo: 'base pace', in_rust: 'at rest', vlotter: 'quicker', rustiger: 'easier', factor: 'factor',
       sluiten: 'Close', geen_zinnen: 'This text contains no readable sentences.',
@@ -277,6 +335,9 @@
       uitleg_rust: "In de 'vanzelf'-stand: hoe lang een zin scherp blijft staan voordat hij begint weg te ademen.",
       uitleg_tempo: "In de 'vanzelf'-stand vindt het tempo zich naar jou: druk vóór de adem en het wordt vlotter, laat een zin vanzelf wegademen en het wordt rustiger.",
       herstel: 'terug naar de oorspronkelijke adem',
+      lbl_weergave: 'weergave',
+      uitleg_weergave: 'Voor wie meer contrast of grotere letters nodig heeft. De zachte stand is de standaard; de contrast-standen halen de mist weg en maken alles groter en scherper.',
+      modus_zacht: 'zacht', modus_donker: 'licht op zwart', modus_licht: 'zwart op wit',
       hint: 'klik, spatie of → voor de volgende zin &nbsp;·&nbsp; ← terug',
       grondtempo: 'grondtempo', in_rust: 'in rust', vlotter: 'vlotter', rustiger: 'rustiger', factor: 'factor',
       sluiten: 'Sluiten', geen_zinnen: 'Deze tekst bevat geen leesbare zinnen.',
@@ -507,6 +568,19 @@
     for (const k in STANDAARD) S[k].value = STANDAARD[k];
     tempoFactor = 1.0; updateWaarden(); bewaarInstelling(); toonTempo();
   });
+
+  // ---- Weergave-modus (toegankelijkheid) ----
+  function zetModus(modus) {
+    if (modus === 'zacht') document.body.removeAttribute('data-modus');
+    else document.body.setAttribute('data-modus', modus);
+    localStorage.setItem('focuslezer:modus', modus);
+    document.querySelectorAll('.modus-knop').forEach(b =>
+      b.classList.toggle('actief', b.getAttribute('data-modus') === modus));
+  }
+  document.querySelectorAll('.modus-knop').forEach(b => {
+    b.addEventListener('click', () => zetModus(b.getAttribute('data-modus')));
+  });
+  zetModus(localStorage.getItem('focuslezer:modus') || 'zacht');
 
   // ---- Taalknop ----
   document.getElementById('taal-knop').addEventListener('click', (e) => {
