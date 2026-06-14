@@ -15,9 +15,10 @@
     --ink-faint: #a89c8c;
     --accent: #8a6a4a;
     --adem: 1200ms;           /* duur van de overgang, gestemd per zin */
-    --leesmaat: 30rem;
-    --focus-grootte: clamp(1.5rem, 3.6vw, 2.15rem);
-    --buur-grootte: 1.05rem;
+    --leesmaat: min(80vw, 60rem);
+    --letterschaal: 1;        /* vermenigvuldiger voor de lettergrootte */
+    --focus-grootte: calc((1.35rem + 0.7vw) * var(--letterschaal));
+    --buur-grootte: calc(1.05rem * var(--letterschaal));
     --buur-vorige-opacity: 0.55;
     --buur-volgende-opacity: 0.32;
     --mist: 1;                /* 1 = mist aan (zacht), 0 = mist uit (scherp) */
@@ -30,8 +31,8 @@
     --ink-mid: #e8e8e8;
     --ink-faint: #c8c8c8;
     --accent: #ffd24a;
-    --focus-grootte: clamp(2rem, 5vw, 3rem);
-    --buur-grootte: 1.2rem;
+    --focus-grootte: calc((2rem + 1vw) * var(--letterschaal));
+    --buur-grootte: calc(1.3rem * var(--letterschaal));
     --buur-vorige-opacity: 0.85;
     --buur-volgende-opacity: 0.7;
     --mist: 0;
@@ -43,8 +44,8 @@
     --ink-mid: #1a1a1a;
     --ink-faint: #333333;
     --accent: #0040b0;
-    --focus-grootte: clamp(2rem, 5vw, 3rem);
-    --buur-grootte: 1.2rem;
+    --focus-grootte: calc((2rem + 1vw) * var(--letterschaal));
+    --buur-grootte: calc(1.3rem * var(--letterschaal));
     --buur-vorige-opacity: 0.85;
     --buur-volgende-opacity: 0.7;
     --mist: 0;
@@ -76,8 +77,7 @@
     transition: opacity var(--adem) cubic-bezier(0.45,0,0.55,1),
                 filter var(--adem) cubic-bezier(0.45,0,0.55,1),
                 transform var(--adem) cubic-bezier(0.45,0,0.55,1),
-                color var(--adem) cubic-bezier(0.45,0,0.55,1),
-                font-size var(--adem) cubic-bezier(0.45,0,0.55,1);
+                color var(--adem) cubic-bezier(0.45,0,0.55,1);
   }
   /* De vorige zin: nabeeld dat opdoemt, gedimd, klein. */
   #vorige   { font-size: var(--buur-grootte); color: var(--ink-faint); opacity: var(--buur-vorige-opacity); filter: blur(calc(0.4px * var(--mist))); font-style: italic; line-height: 1.5; }
@@ -190,7 +190,6 @@
   .modus-knop.actief { background: var(--accent); color: var(--paper); border-color: var(--accent); }
 
   @media (max-width: 600px) {
-    :root { --leesmaat: 92vw; }
     #balk { padding: 0.8rem 1rem; }
     #titel {
       max-width: 45vw; overflow: hidden; text-overflow: ellipsis;
@@ -261,6 +260,12 @@
   </div>
 
   <div class="veld">
+    <label><span data-i18n="lbl_letter">lettergrootte</span> <span class="waarde" id="w-letter">100%</span></label>
+    <span class="uitleg" data-i18n="uitleg_letter">Groter of kleiner naar je eigen oog. De letters blijven meegroeien met het scherm.</span>
+    <input type="range" id="s-letter" min="70" max="220" step="5" value="100">
+  </div>
+
+  <div class="veld">
     <label><span data-i18n="lbl_basis">rust-adem</span> <span class="waarde" id="w-basis">800 ms</span></label>
     <span class="uitleg" data-i18n="uitleg_basis">De kortste adem: hoe lang zelfs een heel korte zin de tijd krijgt om weg te vloeien.</span>
     <input type="range" id="s-basis" min="200" max="4000" step="50" value="800">
@@ -313,6 +318,8 @@
       lbl_weergave: 'display',
       uitleg_weergave: 'For those who need more contrast or larger letters. The soft mode is the default; the contrast modes remove the mist and make everything larger and sharper.',
       modus_zacht: 'soft', modus_donker: 'light on black', modus_licht: 'black on white',
+      lbl_letter: 'letter size',
+      uitleg_letter: 'Larger or smaller to suit your own eye. The letters keep growing with the screen.',
       hint: 'click, space or → for the next sentence &nbsp;·&nbsp; ← back',
       grondtempo: 'base pace', in_rust: 'at rest', vlotter: 'quicker', rustiger: 'easier', factor: 'factor',
       sluiten: 'Close', geen_zinnen: 'This text contains no readable sentences.',
@@ -338,6 +345,8 @@
       lbl_weergave: 'weergave',
       uitleg_weergave: 'Voor wie meer contrast of grotere letters nodig heeft. De zachte stand is de standaard; de contrast-standen halen de mist weg en maken alles groter en scherper.',
       modus_zacht: 'zacht', modus_donker: 'licht op zwart', modus_licht: 'zwart op wit',
+      lbl_letter: 'lettergrootte',
+      uitleg_letter: 'Groter of kleiner naar je eigen oog. De letters blijven meegroeien met het scherm.',
       hint: 'klik, spatie of → voor de volgende zin &nbsp;·&nbsp; ← terug',
       grondtempo: 'grondtempo', in_rust: 'in rust', vlotter: 'vlotter', rustiger: 'rustiger', factor: 'factor',
       sluiten: 'Sluiten', geen_zinnen: 'Deze tekst bevat geen leesbare zinnen.',
@@ -581,6 +590,17 @@
     b.addEventListener('click', () => zetModus(b.getAttribute('data-modus')));
   });
   zetModus(localStorage.getItem('focuslezer:modus') || 'zacht');
+
+  // ---- Lettergrootte ----
+  const sLetter = document.getElementById('s-letter');
+  function zetLetter(pct) {
+    document.documentElement.style.setProperty('--letterschaal', pct / 100);
+    document.getElementById('w-letter').textContent = pct + '%';
+    sLetter.value = pct;
+    localStorage.setItem('focuslezer:letter', pct);
+  }
+  sLetter.addEventListener('input', () => zetLetter(+sLetter.value));
+  zetLetter(parseInt(localStorage.getItem('focuslezer:letter'), 10) || 100);
 
   // ---- Taalknop ----
   document.getElementById('taal-knop').addEventListener('click', (e) => {

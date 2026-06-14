@@ -43,10 +43,10 @@ def veilig_pad(bestandsnaam):
 # ---------------------------------------------------------------------------
 # Veelvoorkomende afkortingen (NL + EN) die GEEN zinseinde zijn.
 AFKORTINGEN = {
-    "mr", "mrs", "ms", "dr", "st", "prof", "sr", "jr", "vs", "etc",
-    "nr", "no", "blz", "pag", "fig", "ca", "bv", "bijv", "enz", "ev",
-    "dhr", "mevr", "ing", "drs", "mr", "ir", "tel", "a.u.b", "z.o.z",
-    "i.v.m", "o.a", "d.w.z", "n.a.v", "t.o.v", "p.s",
+    "mr.", "mrs.","mss", "ms.", "dr.", "st.", "prof.", "sr.", "jr.", "vs.", "etc.",
+    "nr.", "no.", "blz.", "pag.", "fig.", "c.a.", "b.v.", "bijv.", "enz.", "ev",
+    "dhr.", "mevr.", "ing.", "drs.", "mr.", "ir.", "tel.", "a.u.b.", "z.o.z.",
+    "i.v.m.", "o.a.", "d.w.z.", "n.a.v.", "t.o.v.", "p.s.",
 }
 
 
